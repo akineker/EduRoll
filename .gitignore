@@ -1,0 +1,63 @@
+########################################
+# Rust Build Artefacts
+########################################
+target/
+**/target/
+
+# Rust Cargo Files
+*.rs.bk
+*.rmeta
+
+########################################
+# Compiler / Build Outputs
+########################################
+cache/
+out/
+
+########################################
+# ZK Circuits (Circom/Noir) Artefacts
+########################################
+*.r1cs
+*.wasm
+*.zkey
+*.sym
+*.ptau
+*.wtns
+*.json
+
+########################################
+# Foundry / Solidity Build Artifacts
+########################################
+out/
+broadcast/
+cache/
+
+# Ignore dry-run deployments
+/broadcast/**/dry-run/
+
+########################################
+# Docker & Containers
+########################################
+docker-compose.override.yml
+*.log
+*.pid
+
+########################################
+# Environment & Private Data
+########################################
+.env
+.env.*
+*.pem
+*.key
+*.secret
+*.credentials
+
+########################################
+# OS / Editor Files
+########################################
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+.af~lock~
