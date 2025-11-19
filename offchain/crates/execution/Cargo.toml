@@ -1,0 +1,10 @@
+[package]
+name = "execution"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+types = { path = "../types" }
+blake3 = { workspace = true }   # simple state checkpointing (off-chain)

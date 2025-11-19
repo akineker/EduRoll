@@ -1,0 +1,22 @@
+[package]
+name = "test_client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Async Runtime
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+# HTTP Client for RPC submission
+reqwest = { version = "0.11", features = ["json"] }
+
+# Serialization/Deserialization for communication
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Ethereum Types and Signing (Crucial for L2 transactions)
+ethers-core = { workspace = true }
+ethers-signers = { workspace = true }
+
+rand = "0.8"
+hex = "0.4"

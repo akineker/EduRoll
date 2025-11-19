@@ -1,0 +1,123 @@
+version: '3.8'
+
+#NETWORKS
+networks:
+  eduroll_net:
+    driver: bridge
+
+#VOLUMES (Data Persistence)
+volumes:
+  postgres_data:
+  # FIXME Add a separate volume for ZK proving keys (often very large and static)
+  zk_keys_cache: 
+  
+
+#SERVICES
+services:
+  # CORE INFRASTRUCTURE
+  postgres:
+    image: postgres:16-alpine 
+    container_name: postgres
+    networks:
+      - eduroll_net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Mount the persistent volume
+      # FIXME Use init.sql, not the Dockerfile
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_USER: eduroll_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-localpassword}
+      POSTGRES_DB: eduroll_db
+      
+    ports:
+      - "5432:5432"
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry
+    container_name: anvil
+    command: anvil --chain-id 1337 --port 8545 --host 0.0.0.0 --silent
+    networks:
+      - eduroll_net
+    ports:
+      - "8545:8545"
+
+  # RUST SERVICES
+  sequencer:
+    build:
+      context: .
+      dockerfile: ./offchain/crates/sequencer/sequencer.Dockerfile
+    depends_on:
+      - postgres
+      - anvil
+    networks:
+      - eduroll_net
+    environment: 
+      DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
+      L1_RPC_URL: http://anvil:8545
+      RUSTFLAGS: "-C target-cpu=native"
+
+    ports:
+      - "9001:9001"
+
+  prover:
+    build:
+      context: .
+      dockerfile: ./offchain/crates/prover/prover.Dockerfile
+    depends_on:
+      - postgres 
+    networks:
+      - eduroll_net
+    volumes:
+      # FIXME : Mount the directory containing the ZK proving artifacts (keys, circuits) <-- ADDITION: Read-only mount for ZK keys
+      - ./circuits/build:/app/circuits/build:ro
+    environment:
+      DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
+      RUSTFLAGS: "-C target-cpu=native"
+      # FIXME: Update path to be inside the container based on the volume mount
+      ZK_PROVING_KEY_PATH: /app/circuits/build/tuition_final.zkey 
+
+  submitter:
+    build:
+      context: .
+      dockerfile: ./offchain/crates/submitter/submitter.Dockerfile
+    depends_on:
+      - postgres
+      - anvil
+    networks:
+      - eduroll_net
+    # ADDITION: Mount the local .env or secrets file into the container  <-- env allows access to L1_PRIVATE_KEY
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
+      RUSTFLAGS: "-C target-cpu=native"
+      L1_RPC_URL: http://anvil:8545
+      # Assuming L1_PRIVATE_KEY is defined in the .env file
+
+  archiver:
+    build:
+      context: ./
+      dockerfile: ./offchain/crates/archiver/archiver.Dockerfile
+    depends_on:
+      - postgres
+    networks:
+      - eduroll_net
+    environment:
+      DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
+      RUSTFLAGS: "-C target-cpu=native"
+
+
+  # SIMULATION TOOLS
+  test_client:
+    build:
+      context: .
+      dockerfile: ./tools/test_client/test_client.Dockerfile 
+    depends_on:
+      - sequencer 
+    networks:
+      - eduroll_net
+    command: /usr/local/bin/test_client run-simulation --target-url http://sequencer:9001
+    environment:
+      SEQUENCER_URL: http://sequencer:9001
+      RUSTFLAGS: "-C target-cpu=native"
+    restart: "no"

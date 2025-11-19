@@ -47,9 +47,42 @@ See **[`/docs`](./docs/README.md)** for the full technical architecture.
 ---
 
 ## Running the Project
+**Note:** A Makefile will be added once the L1 and L2 development is complete.  
+During development, you can use the commands below to run the environment.
 
-Full setup instructions (Docker, Rust services, circuits, keys, L1 deployment)  
+Full setup instructions (Docker, Rust services, circuits, keys, and L1 deployment)  
 will be added as the implementation progresses.
 
+#### Standard Docker
 ```bash
-    # Coming soon:
+    docker-compose up --build -d
+```
+#### Using Colima (Lightweight Docker Alternative)
+If you have [colima](https://github.com/abiosoft/colima),  a lightweight Docker alternative suitable for low-resource systems, start it first:
+
+```bash
+    colima start
+```
+
+OR to further limit CPU and memory usage (optional) :
+```bash
+    colima start --cpu 6 --memory 10 --runtime docker
+```
+
+Then run the project:
+
+```bash
+    COMPOSE_PARALLEL_LIMIT=1 docker-compose up --build -d
+```
+#### Checking the system
+
+
+```bash
+  docker-compose logs sequencer prover submitter
+```
+
+Expected output:
+
+```bash
+  Submitter is here!
+```

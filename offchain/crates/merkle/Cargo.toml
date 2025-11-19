@@ -1,0 +1,13 @@
+[package]
+name = "merkle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+sha3 = { workspace = true }
+tiny-keccak = { workspace = true }
+ark-ff = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-crypto-primitives = { workspace = true }
+types = { path = "../types" }
