@@ -5,11 +5,11 @@ networks:
   eduroll_net:
     driver: bridge
 
-#VOLUMES (Data Persistence)
+#VOLUMES (PostgresDB)
 volumes:
   postgres_data:
-  # FIXME Add a separate volume for ZK proving keys (often very large and static)
-  zk_keys_cache: 
+
+  # zk_keys_cache: 
   
 
 #SERVICES
@@ -68,12 +68,10 @@ services:
     networks:
       - eduroll_net
     volumes:
-      # FIXME : Mount the directory containing the ZK proving artifacts (keys, circuits) <-- ADDITION: Read-only mount for ZK keys
       - ./circuits/build:/app/circuits/build:ro
     environment:
       DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
       RUSTFLAGS: "-C target-cpu=native"
-      # FIXME: Update path to be inside the container based on the volume mount
       ZK_PROVING_KEY_PATH: /app/circuits/build/tuition_final.zkey 
 
   submitter:
@@ -85,14 +83,12 @@ services:
       - anvil
     networks:
       - eduroll_net
-    # ADDITION: Mount the local .env or secrets file into the container  <-- env allows access to L1_PRIVATE_KEY
     env_file:
       - .env
     environment:
       DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
       RUSTFLAGS: "-C target-cpu=native"
       L1_RPC_URL: http://anvil:8545
-      # Assuming L1_PRIVATE_KEY is defined in the .env file
 
   archiver:
     build:
