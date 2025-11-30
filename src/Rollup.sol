@@ -1,5 +1,3 @@
-// src/Rollup.sol
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 import "./interfaces/IVerifier.sol";
@@ -31,12 +29,11 @@ contract Rollup is IRollup{
             uint256[2] calldata c,
             PublicInputs calldata input
     )external override{
-        // CHECKS
-        require(input.oldRoot == currentStateRoot, "Invalid root is provided.");
+        require(input.oldRoot == currentStateRoot, "Invalid old root");
         require(input.batchNumber == currentBatchNumber + 1, "Batch number is invalid.");
 
-        //Prepare the public inputs for the verifier
-        uint256[] memory pubSignals = new uint256[](8); //TODO: Change here if you are using a different circuit size
+        //TODO: Change here if you are using a different circuit size
+        uint256[] memory pubSignals = new uint256[](8); 
         pubSignals[0] = uint256(input.oldRoot);
         pubSignals[1] = uint256(input.newRoot);
         pubSignals[2] = uint256(input.withdrawalsRoot);
@@ -46,11 +43,9 @@ contract Rollup is IRollup{
         pubSignals[6] = uint256(input.l1BlockNumber);
         pubSignals[7] = uint256(input.circuitVersion);
 
-        //Verify the proof
         bool validProof = verifier.verifyProof(a, b,c, pubSignals);
         require(validProof, "ZK Proof verification failed.");
 
-        // Update state
         currentStateRoot = input.newRoot;
         currentBatchNumber = input.batchNumber;
 
@@ -58,7 +53,6 @@ contract Rollup is IRollup{
 
     }
 
-    // Withdraw
     function withdrawFunds(
             address token,
             uint256 amount,
@@ -77,14 +71,10 @@ contract Rollup is IRollup{
             //Verify Merkle proof against the withdrawals root
             //TODO: Edit the code below to change the currentStateRoot with the withdrawals root
             require(MerkleProof.verify(merkleProof, currentStateRoot,leaf));
-            // require(MerkleProof.verify(merkleProof, withdrawalsRoot,leaf));
 
-            // Mark as processed
+
             processedWithdrawals[leaf] = true;
-            //Increment nonce
             nonces[msg.sender]++;
-
-            //Send funds
             bridge.releaseFunds(msg.sender, amount);
 
         }

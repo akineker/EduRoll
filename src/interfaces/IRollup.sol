@@ -1,7 +1,3 @@
-/* 
-
-*/
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -38,8 +34,8 @@ interface IRollup {
             PublicInputs calldata input
     ) external;
 
-    /// User function to withdraw funds: Requires merkle proof
-    /// @notice  Nonce is added to miitgate Replay attacks as without a nonce value, a user only withdraw once for the same amount.
+    /// User function to withdraw funds: Requires Merkle proof
+    /// @notice  Nonce is added to mitigate Replay attacks as without a nonce value, a user only withdraw once for the same amount.
     function withdrawFunds(
         address token,
         uint256 amount,
