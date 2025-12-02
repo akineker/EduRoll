@@ -4897,6 +4897,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "ethers",
  "hex",
  "serde",
  "serde_json",
