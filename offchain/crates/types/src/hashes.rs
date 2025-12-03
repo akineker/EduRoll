@@ -1,5 +1,7 @@
 use serde::{Serialize, Deserialize};
 use std::fmt;
+
+/// Provides type safety for the system
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Hash(pub [u8; 32]);
 
