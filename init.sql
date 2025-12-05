@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS batches (
     submitted_at TIMESTAMP
 );
 
+-- Partitioning can be added for the 'transactions' table to address scalability requirements in a large-scale, high-throughput production environment.
+-- However, for this research prototype, the current schema with optimal indexing is maintained for development simplicity and efficient simulation data handling.
 CREATE TABLE IF NOT EXISTS transactions (
     tx_hash BYTEA PRIMARY KEY,
     signature BYTEA NOT NULL,

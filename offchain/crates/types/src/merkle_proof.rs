@@ -18,3 +18,22 @@ pub struct AccountProofResponse {
     pub nonce: U256,
     pub proof: MerkleProof,
 }
+
+impl MerkleProof {
+    pub fn verify(&self, hash_function: impl Fn(&Hash, &Hash) -> Hash) -> bool {
+        let mut current_hash = self.leaf_hash;
+        let mut index = self.leaf_index;
+
+        for sibling in self.siblings.iter() {
+            let (left, right) = if index % 2 == 0 {
+                (&current_hash, sibling)
+            } else {
+                (sibling, &current_hash)
+            };
+
+            current_hash = hash_function(left, right);
+            index /= 2;
+        }
+        current_hash == self.root
+    }
+}
