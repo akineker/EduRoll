@@ -1,4 +1,4 @@
-# EduRoll
+ # EduRoll
 EduRoll: End-to-End Ethereum zk-Rollup (L1 Contracts, Sequencer, Circuits) Built From Scratch
 
 **EduRoll** is an end-to-end zk-rollup prototype built entirely from scratch, including:
@@ -24,17 +24,17 @@ state execution → batching → proving → L1 verification → state finalisat
 
 ## System Components (Overview)
 
-See **[`/docs`](./docs/README.md)** for the full technical architecture.
+See **[`/docs`](./docs/README.md)** for the full explanation.
 
 ### **Layer 1 (Ethereum)**  
 - **`Rollup.sol`** — Stores canonical L2 state root and validates batch proofs  
 - **`Verifier.sol`** — Auto-generated zkSNARK verifier contract  
-- **`Bridge.sol`** — Handles deposits and withdrawals between L1 ↔ L2  
+- **`Bridge.sol`** — Handles deposits and withdrawals between L1 ↔ L2 
 
 
 ### **Layer 2 (Off-Chain Services)**  
 - **Sequencer** — Validates, orders, and executes L2 transactions; creates batches  
-- **Prover** — Generates Groth16 proofs for each batch  
+- **Prover** — Generates Groth16 proofs for each batch  (A batch is accepted to consist of 100 transactions)
 - **Submitter** — Submits proven batches to `Rollup.sol`  
 - **Archiver** — Indexes txs and batches for external queries  
 - **Persistent DB (PostgreSQL)** — Central coordination layer for all off-chain components  
@@ -86,3 +86,27 @@ Expected output:
 ```bash
   Submitter is here!
 ```
+
+---
+
+## Performance & Scalability Analysis
+The performance of a ZK-Rollup is defined by the trade-off between **Prover Latency** (proof generation time) and **Amortised L1 Gas Costs** (cost per transaction on Ethereum). Detailed architectural reasoning and academic justifications are provided in the [Full Documentation](./docs/README.md).
+
+`Batch Size Strategy`
+EduRoll is configured with a default batch size of 100 transactions.
+
+**L2 Prover Latency:** A batch size of 100 allows for proof generation without excessive memory overhead.
+
+**L1 Amortisation:** While larger batches increase prover time, they significantly reduce the cost per user.
+
+## Benchmarks (Evaluation in Progress)
+The following table provides the technical performance metrics for the EduRoll system. These benchmarks are conducted on a local environment to simulate the performance of the Prover and the L1 Verifier.
+
+| Metric | EduRoll (Batch=100) | Metric Description |
+|---|---|---|
+| Circuit Constraints | TBA | Total R1CS constraints for the `transfer` circuit logic. |
+| Witness Generation | TBA | Time to calculate the witness for a batch. |
+| Proof Generation Time | TBA | Total time for the `Prover` to generate a Groth16 ZK-SNARK. |
+| Verification Gas Cost | TBA | The cost of running the `verifyProof()` function on L1. |
+| Finality (Soft) | TBA | The time for the `Sequencer` to acknowledge and store the batch. |
+| Finality (Hard) | TBA | Time until the proof is verified and the batch is finalised on-chain (Ethereum). |

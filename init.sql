@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS accounts (
+/Users/akin/Developer/zkp-projects/zk_edupayroll_onchain/NOTICE /Users/akin/Developer/zkp-projects/zk_edupayroll_onchain/LICENSECREATE TABLE IF NOT EXISTS accounts (
     account_id SERIAL PRIMARY KEY,
     owner_address BYTEA NOT NULL,
     balance NUMERIC(78, 0) NOT NULL,
