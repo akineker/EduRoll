@@ -57,7 +57,9 @@ The system's core design principle is **resilience and scalability**, achieved b
 
 ### System Setup Process
 
-#### Phase 0: Merkle Tree — Keccak-256 vs Poseidon
+#### Phase 0: Design Choices
+
+##### Merkle Tree : Keccak-256 vs Poseidon
 
 Before starting the system implementation, a critical architectural decision must be made regarding the Merkle Tree, which acts as the `source of truth` for the system state.
 
@@ -66,7 +68,7 @@ Before starting the system implementation, a critical architectural decision mus
 
 3. **ZK-Friendly Alternative:** Many ZK-Rollup solutions adopt a hybrid approach. They use Poseidon, a sponge-based hash function designed specifically for prime fields.
 
-	3.1 **Arithmetic Efficiency:** Poseidon operates directly on field elements through $x^n$ S-boxes and MDS matrix multiplications. This results in only $210$–$300$ constraints per hash—a $500\times$ improvement over Keccak-256. [See ZK-Circuits Benchmark in Circom paper](https://eprint.iacr.org/2023/681)
+	3.1 **Arithmetic Efficiency:** Poseidon operates directly on field elements through $x^n$ S-boxes and MDS matrix multiplications. This results in only $210$–$300$ constraints per hash, $500\times$ improvement over Keccak-256. [See ZK-Circuits Benchmark in Circom paper](https://eprint.iacr.org/2023/681)
 	
 	3.2 **EduRoll System :** EduRoll adopts a hybrid model. It utilises `Poseidon Sparse Merkle Trees (SMT)`. Sparse trees allow for the representation of a large address space efficiently by only storing non-zero leaves. Therefore, they significantly reduce the proof size for state inclusion.
 	
@@ -76,6 +78,18 @@ Before starting the system implementation, a critical architectural decision mus
 
 	3.3.2. **L1 Interface Hash (Keccak):** Used by the `Submitter` to commit the L2 batch to the Ethereum L1 contract, ensuring compatibility with Ethereum.
 
+##### Signature Scheme
+
+Ethereum leverages the ECDSA (secp256k1) signature scheme, which is based on Elliptic Curve Cryptography (ECC). While secp256k1 is highly secure and performs well with the bit-wise operations of the Ethereum Virtual Machine (EVM), it is not optimized for the arithmetic circuits used by ZK-Rollup provers. Implementing ECDSA verification within a ZK circuit requires an excessive number of constraints, primarily due to the non-native field arithmetic and the modular inversion required for verification.
+
+Table below (**will be updated**) presents a comparison of a set of popular signature schemes. To optimize the prover's efficiency in the EduRoll Project, Schnorr signatures are favored. Schnorr signatures offer a linear structure that is significantly more "ZK-friendly," resulting in fewer constraints and faster proof generation times.
+
+| Signature Scheme | Curve       | Field Type  | Approx. ZK Constraints | Suitability for EduRoll |
+|---|---|:---|---|---|
+| [**ECDSA**]()        | secp256k1   | Non-Native  |       |  |
+| [**ECDSA + AA**]()   | secp256k1   | Non-Native  |                |  |
+| [**EdDSA**]()        | Baby Jubjub | Native      |        |  |
+| [**Schnorr**]()      | alt_bn128   | Native      |         |  | |
 
 #### Phase 1: ZK-Artifact Generation (Compile-Time)
 
@@ -88,18 +102,18 @@ Before the system can run, the ZK-SNARK components are generated from the circui
 
 	  * Below is a table for comparison of available libraries:
 
-| System | Core Features | Trusted Setup | Verifier Cost | Used By |
-| :--- | :--- | :--- | :--- | :--- |
-| [**Groth16**](https://alinush.github.io/groth16) | Very fast verification; smallest proofs | Circuit-specific | **Lowest** | Filecoin, many Circom projects |
-| [**PLONK**](https://eprint.iacr.org/2019/953.pdf) | Universal setup; flexible | Universal | Medium | Aztec 1, early zkSync |
-| [**UltraPLONK / TurboPLONK**](https://hackmd.io/@aztec-network/plonk-arithmetiization-air) | Lookup/optimized gates; scalable | Universal | Medium | Polygon zkEVM (variants) |
-| [**Marlin**](https://eprint.iacr.org/2019/1047.pdf) | Transparent; succinct | Transparent | Medium | Mina ecosystem |
-| [**Halo2**](https://eprint.iacr.org/2019/1021.pdf) | Recursion-friendly; flexible; modern | Transparent | Higher | Zcash, Scroll (with KZG) |
-| [**STARKs**](https://eprint.iacr.org/2018/046.pdf) | Fast proving; highly scalable; hash-based | Transparent | High (large proofs) | StarkNet |
-| **[Spartan](https://github.com/microsoft/Spartan2) / [HyperPlonk](https://eprint.iacr.org/2022/1355.pdf)** | Modular, research-focused systems | Mixed | Varies | Research prototypes |
+| System | Core Features | Trusted Setup | Verifier Cost |
+| :--- | :--- | :--- | :--- |
+| [**Groth16**](https://alinush.github.io/groth16) | Very fast verification; smallest proofs | Circuit-specific | **Lowest** | 
+| [**PLONK**](https://eprint.iacr.org/2019/953.pdf) | Universal setup; flexible | Universal | Medium |
+| [**UltraPLONK / TurboPLONK**](https://hackmd.io/@aztec-network/plonk-arithmetiization-air) | Lookup/optimized gates; scalable | Universal | Medium |
+| [**Marlin**](https://eprint.iacr.org/2019/1047.pdf) | Transparent; succinct | Transparent | Medium | 
+| [**Halo2**](https://eprint.iacr.org/2019/1021.pdf) | Recursion-friendly; flexible; modern | Transparent | Higher |
+| [**STARKs**](https://eprint.iacr.org/2018/046.pdf) | Fast proving; highly scalable; hash-based | Transparent | High (large proofs) | 
+| **[Spartan](https://github.com/microsoft/Spartan2) / [HyperPlonk](https://eprint.iacr.org/2022/1355.pdf)** | Modular, research-focused systems | Mixed | Varies |
 
 
-The EduRoll project currently utilizes a local trusted setup for the Groth16 proving system. In a production environment, this requires a `Multi-Party Computation (MPC) ceremony` (often referred to as a `Powers of Tau` ceremony) to generate the Common Reference String (CRS). This ceremony ensures that the `toxic waste`(randomness used during setup) is deleted. Additionally, the security of the system relies on the assumption that at least one participant in the MPC was honest and destroyed their contribution. [See this paper] for a detailed explanation (https://eprint.iacr.org/2017/1050.pdf) and [this repo.](https://github.com/iden3/snarkjs)
+The EduRoll project currently utilizes a local trusted setup for the Groth16 proving system. In a production environment, this requires a `Multi-Party Computation (MPC) ceremony` (often referred to as a `Powers of Tau` ceremony) to generate the Common Reference String (CRS). This ceremony ensures that the `toxic waste`(randomness used during setup) is deleted. Additionally, the security of the system relies on the assumption that at least one participant in the MPC was honest and destroyed their contribution. [See this paper](https://eprint.iacr.org/2017/1050.pdf) for a detailed explanation  and [this repo.](https://github.com/iden3/snarkjs)
 
 
 * **L1 Verifier (`Verifier.sol`):** A small (e.g., 5KB) Solidity contract generated by `snarkjs`. It is deployed to L1 to *check* proofs.
@@ -110,6 +124,8 @@ This describes how transactions are processed on the rollup in batches and then 
 - A batch is accepted to consist of 100 transactions in this project.
 - This is for the local deployment as we do not want to have memory exhaustion during the witness generation process.
 - However, a larger number (e.g. 1,000 transactions) is favoured in industry applications to gas amortisation.
+
+For a detailed explanation of the first four steps, see the [L2 documentation.](offchain_docs.md)
 
 1.  **Step 1: Ingestion (Data Flow)**
 	* The `TEST CLIENT` generates and sends signed L2 transactions to the `SEQUENCER`'s RPC endpoint.
@@ -135,5 +151,7 @@ This describes how transactions are processed on the rollup in batches and then 
 	* `Rollup.sol` receives the call and immediately passes the proof data to the **`Verifier.sol`** contract by calling `verifyProof()`.
 	* `Verifier.sol` runs the on-chain cryptographic check. If the proof is valid, it returns `true`.
 	* `Rollup.sol` receives `true`, requires the check to pass, and updates its internal `stateRoot` variable to the new state root from the batch.
+
+	Here is the detailed explanation for the [L1 communication.](onchain_communication.md)
 
 At this point, the L2 batch is officially finalized and secured by L1 consensus.
