@@ -4,11 +4,11 @@ EduRoll: End-to-End Ethereum zk-Rollup (L1 Contracts, Sequencer, Circuits) Built
 **EduRoll** is an end-to-end zk-rollup prototype built entirely from scratch, including:
 - L1 smart contracts (`Rollup.sol`, `Bridge.sol`, `Verifier.sol`)
 - L2 sequencer, prover, submitter, and archiver (Rust + Docker)
-- ZK circuit (Groth16, Circom/Noir)
+- ZK circuit (Groth16, Circom)
 - PostgreSQL data layer
 - Full Dockerised microservice environment
 
-EduRoll demonstrates the architecture of modern zk-rollups deployed on Ethereum:
+EduRoll demonstrates the architecture of a zk-rollup deployed on Ethereum:
 state execution → batching → proving → L1 verification → state finalisation.
 
 ---
@@ -99,10 +99,12 @@ EduRoll is configured with a default batch size of 100 transactions.
 
 **L1 Amortisation:** While larger batches increase prover time, they significantly reduce the cost per user.
 
+---
+
 ## Benchmarks (Evaluation in Progress)
 The following table provides the technical performance metrics for the EduRoll system. These benchmarks are conducted on a local environment to simulate the performance of the Prover and the L1 Verifier.
 
-| Metric | EduRoll (Batch=100) | Metric Description |
+| Metric | EduRoll | Metric Description |
 |---|---|---|
 | Circuit Constraints | TBA | Total R1CS constraints for the `transfer` circuit logic. |
 | Witness Generation | TBA | Time to calculate the witness for a batch. |
@@ -110,3 +112,11 @@ The following table provides the technical performance metrics for the EduRoll s
 | Verification Gas Cost | TBA | The cost of running the `verifyProof()` function on L1. |
 | Finality (Soft) | TBA | The time for the `Sequencer` to acknowledge and store the batch. |
 | Finality (Hard) | TBA | Time until the proof is verified and the batch is finalised on-chain (Ethereum). |
+
+
+<!-- Optimisation: Field-Oriented Hashing
+To achieve these performance metrics, EduRoll utilises the Poseidon hash function for all internal Merkle Tree operations.
+
+Keccak-256 (Baseline): Would require ~15.1 million constraints for a 100-transaction batch update (assuming depth 20).
+
+Poseidon (EduRoll): Requires only ~30,000 constraints for the same updates—a 500x improvement in prover efficiency. -->

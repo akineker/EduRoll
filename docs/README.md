@@ -10,7 +10,7 @@ This project implements a full ZK-Rollup for tuition payments, designed as a set
   <img src="./assets/diagrams/SystemOverview.png" alt="System Overview Diagram" width="450"/>
 </a>
 
-The system's core design principle is **resilience and scalability**, achieved by using a central **Persistent Database (PostgreSQL)** as the single source of truth and communication hub for all off-chain services.
+The system's core design principle is **resilience and scalability**, achieved by using a central **Persistent Database (PostgreSQL)** as the communication hub for all off-chain services.
 
 ### Core Components
 
@@ -47,7 +47,7 @@ The system's core design principle is **resilience and scalability**, achieved b
 	* **`Archiver Container`**: A read-only "historian" service that indexes data from the database for external queries (e.g., a block explorer).
 	* **`Submitter Container`**: The "finaliser." This service is responsible for sending the proven L2 batches and their proofs to the L1 `Rollup.sol` contract.
 	* **`PersistentDB Container`**: A PostgreSQL database running in its own dedicated Docker container, with its data stored on a persistent Docker volume.
-	It acts as the **single source of truth** and the central **communication hub** for all L2 services. Instead of communicating with each other directly (which is brittle), services operate asynchronously by reading and writing to the database.
+	It acts as the central **communication hub** for all L2 services. Instead of communicating with each other directly, services operate asynchronously by reading and writing to the database.
 	  * **Operational Flow:**
 		  1.  The `Sequencer` writes a new batch with a status of `pending_proof`.
 		  2.  The `Prover` polls the PersistentDB, finds this `pending_proof` batch, generates a proof, and updates the batch's status to `proven`.
@@ -70,7 +70,7 @@ Before starting the system implementation, a critical architectural decision mus
 
 	3.1 **Arithmetic Efficiency:** Poseidon operates directly on field elements through $x^n$ S-boxes and MDS matrix multiplications. This results in only $210$–$300$ constraints per hash, $500\times$ improvement over Keccak-256. [See ZK-Circuits Benchmark in Circom paper](https://eprint.iacr.org/2023/681)
 	
-	3.2 **EduRoll System :** EduRoll adopts a hybrid model. It utilises `Poseidon Sparse Merkle Trees (SMT)`. Sparse trees allow for the representation of a large address space efficiently by only storing non-zero leaves. Therefore, they significantly reduce the proof size for state inclusion.
+	3.2 **EduRoll System :** EduRoll adopts a hybrid model. It utilises `Poseidon Sparse Merkle Trees (SMT)`. Sparse trees allow for the representation of a large address space efficiently by only storing non-zero leaves.
 	
 	To decouple L1 and L2 without sacrificing L2 performance, the EduRoll system employs two distinct hashes:
 
@@ -82,14 +82,22 @@ Before starting the system implementation, a critical architectural decision mus
 
 Ethereum leverages the ECDSA (secp256k1) signature scheme, which is based on Elliptic Curve Cryptography (ECC). While secp256k1 is highly secure and performs well with the bit-wise operations of the Ethereum Virtual Machine (EVM), it is not optimized for the arithmetic circuits used by ZK-Rollup provers. Implementing ECDSA verification within a ZK circuit requires an excessive number of constraints, primarily due to the non-native field arithmetic and the modular inversion required for verification.
 
-Table below (**will be updated**) presents a comparison of a set of popular signature schemes. To optimize the prover's efficiency in the EduRoll Project, Schnorr signatures are favored. Schnorr signatures offer a linear structure that is significantly more "ZK-friendly," resulting in fewer constraints and faster proof generation times.
+Table below presents a comparison of a set of popular signature schemes. To optimize the prover's efficiency in the EduRoll Project, EdDSA signature scheme (specifically over the Baby Jubjub curve) are favored. EdDSA signatures offer a linear structure that is significantly more "ZK-friendly," resulting in fewer constraints and faster proof generation times. 
+
+Additionally, this piece of [benchmarking research](https://eprint.iacr.org/2023/681.pdf) suggests that the experimental results show that a Schnorr implementation over Baby Jubjub can be up to 3x faster in both verification and proving time while maintaining similar RAM usage and constraint counts. Despite these performance advantages, the security implications must be analyzed before adoption. Consequently, Schnorr is noted as a candidate for future optimization pending a full security audit.
 
 | Signature Scheme | Curve       | Field Type  | Approx. ZK Constraints | Suitability for EduRoll |
 |---|---|:---|---|---|
-| [**ECDSA**]()        | secp256k1   | Non-Native  |       |  |
-| [**ECDSA + AA**]()   | secp256k1   | Non-Native  |                |  |
-| [**EdDSA**]()        | Baby Jubjub | Native      |        |  |
-| [**Schnorr**]()      | alt_bn128   | Native      |         |  | |
+| [**ECDSA**](https://0xparc.org/writings/batch-ecdsa) | secp256k1   | Non-Native  |   ~1.5M    | Low  |
+| [**EdDSA**](https://arxiv.org/pdf/2301.00823)        | Baby Jubjub | Native      |   ~4.2K    | High |
+| [**Schnorr**](https://eprint.iacr.org/2023/681.pdf)  | Baby Jubjub | Native      |  ~4.6K     | High |
+
+
+
+<!-- ##### Commitment Scheme
+
+Commitments are used during the Prover's operation to ...
+Below table compares the commitment schemes. -->
 
 #### Phase 1: ZK-Artifact Generation (Compile-Time)
 
@@ -102,18 +110,19 @@ Before the system can run, the ZK-SNARK components are generated from the circui
 
 	  * Below is a table for comparison of available libraries:
 
-| System | Core Features | Trusted Setup | Verifier Cost |
-| :--- | :--- | :--- | :--- |
-| [**Groth16**](https://alinush.github.io/groth16) | Very fast verification; smallest proofs | Circuit-specific | **Lowest** | 
-| [**PLONK**](https://eprint.iacr.org/2019/953.pdf) | Universal setup; flexible | Universal | Medium |
-| [**UltraPLONK / TurboPLONK**](https://hackmd.io/@aztec-network/plonk-arithmetiization-air) | Lookup/optimized gates; scalable | Universal | Medium |
-| [**Marlin**](https://eprint.iacr.org/2019/1047.pdf) | Transparent; succinct | Transparent | Medium | 
-| [**Halo2**](https://eprint.iacr.org/2019/1021.pdf) | Recursion-friendly; flexible; modern | Transparent | Higher |
-| [**STARKs**](https://eprint.iacr.org/2018/046.pdf) | Fast proving; highly scalable; hash-based | Transparent | High (large proofs) | 
-| **[Spartan](https://github.com/microsoft/Spartan2) / [HyperPlonk](https://eprint.iacr.org/2022/1355.pdf)** | Modular, research-focused systems | Mixed | Varies |
+| System | Trusted Setup | Verifier Cost |
+| :---| :--- | :--- |
+| [**Groth16**](https://alinush.github.io/groth16) | Circuit-specific | **Lowest** | 
+| [**PLONK**](https://eprint.iacr.org/2019/953.pdf) | Universal | Medium |
+| [**UltraPLONK / TurboPLONK**](https://hackmd.io/@aztec-network/plonk-arithmetiization-air)| Universal | Medium |
+| **[HyperPlonk](https://eprint.iacr.org/2022/1355.pdf)** | Universal | Medium |
+| [**Marlin**](https://eprint.iacr.org/2019/1047.pdf) |  Universal | Medium | 
+| [**Halo2**](https://eprint.iacr.org/2019/1021.pdf) | Transparent | Higher|
+| [**STARKs**](https://eprint.iacr.org/2018/046.pdf) |Transparent | High | 
+| **[Spartan](https://github.com/microsoft/Spartan2)** | Transparent | High |
 
 
-The EduRoll project currently utilizes a local trusted setup for the Groth16 proving system. In a production environment, this requires a `Multi-Party Computation (MPC) ceremony` (often referred to as a `Powers of Tau` ceremony) to generate the Common Reference String (CRS). This ceremony ensures that the `toxic waste`(randomness used during setup) is deleted. Additionally, the security of the system relies on the assumption that at least one participant in the MPC was honest and destroyed their contribution. [See this paper](https://eprint.iacr.org/2017/1050.pdf) for a detailed explanation  and [this repo.](https://github.com/iden3/snarkjs)
+The EduRoll project leverages Groth16 proving system which requires a trusted setup process. In a production environment, this requires a `Multi-Party Computation (MPC) ceremony` (often referred to as a `Powers of Tau` ceremony) to generate the Common Reference String (CRS). This ceremony ensures that the `toxic waste`(randomness used during setup) is deleted. Additionally, the security of the system relies on the assumption that at least one participant in the MPC was honest and destroyed their contribution. [See this paper](https://eprint.iacr.org/2017/1050.pdf) for a detailed explanation  and [this repo.](https://github.com/iden3/snarkjs)
 
 
 * **L1 Verifier (`Verifier.sol`):** A small (e.g., 5KB) Solidity contract generated by `snarkjs`. It is deployed to L1 to *check* proofs.
@@ -123,21 +132,21 @@ The EduRoll project currently utilizes a local trusted setup for the Groth16 pro
 This describes how transactions are processed on the rollup in batches and then submitted to Layer-1 Ethereum.
 - A batch is accepted to consist of 100 transactions in this project.
 - This is for the local deployment as we do not want to have memory exhaustion during the witness generation process.
-- However, a larger number (e.g. 1,000 transactions) is favoured in industry applications to gas amortisation.
+- However, a larger number (e.g. 1,000 transactions) is favoured in industry applications for gas amortisation.
 
-For a detailed explanation of the first four steps, see the [L2 documentation.](offchain_docs.md)
+For a detailed explanation of the first four steps below, see the [L2 documentation.](offchain_docs.md)
 
 1.  **Step 1: Ingestion (Data Flow)**
 	* The `TEST CLIENT` generates and sends signed L2 transactions to the `SEQUENCER`'s RPC endpoint.
 
 2.  **Step 2: Batching (Data Flow)**
-	* The `SEQUENCER` validates the transactions and stores it in the `txs` table of the `PERSISTENTDB`.
+	* The `SEQUENCER` validates the transactions and stores it in the `txs` table in the `PERSISTENTDB`.
 	* Periodically, the `SEQUENCER` fetches a list of pending transactions, reads the current state from the `accounts` table, and executes them (using the `execution` and `merkle` crates) to calculate a new **state root**.
 	* It writes this new batch (new state root, list of tx hashes, etc.) to the `batches` table, marking it as `pending_proof`.
 
 3.  **Step 3: Proving (Proof Flow)**
 	* The `PROVER` is continuously polling the `PersistentDB`. It finds a `pending_proof` batch.
-	* It reads the batch data, loads its `transfer_final.zkey`, and generates the ZK-SNARK proof (`a, b, c`) that validates the state transition. Read this for ZK-SNARK proof generation. See [this paper](https://eprint.iacr.org/2016/260.pdf) for how the proof are generated and [this repo](https://github.com/iden3/snarkjs) for interacting.
+	* It reads the batch data, loads its `transfer_final.zkey`, and generates the ZK-SNARK proof (`a, b, c`) that validates the state transition. See [this paper](https://eprint.iacr.org/2016/260.pdf) CHECK HERE for how the proofs are generated and [this repo](https://github.com/iden3/snarkjs) for interacting.
 
 	* The `PROVER` writes this proof back to the `batches` table in the `PersistentDB` and updates the status to `proven`.
 
