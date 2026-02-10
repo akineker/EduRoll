@@ -112,11 +112,3 @@ The following table provides the technical performance metrics for the EduRoll s
 | Verification Gas Cost | TBA | The cost of running the `verifyProof()` function on L1. |
 | Finality (Soft) | TBA | The time for the `Sequencer` to acknowledge and store the batch. |
 | Finality (Hard) | TBA | Time until the proof is verified and the batch is finalised on-chain (Ethereum). |
-
-
-<!-- Optimisation: Field-Oriented Hashing
-To achieve these performance metrics, EduRoll utilises the Poseidon hash function for all internal Merkle Tree operations.
-
-Keccak-256 (Baseline): Would require ~15.1 million constraints for a 100-transaction batch update (assuming depth 20).
-
-Poseidon (EduRoll): Requires only ~30,000 constraints for the same updates—a 500x improvement in prover efficiency. -->

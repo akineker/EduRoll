@@ -82,7 +82,7 @@ Before starting the system implementation, a critical architectural decision mus
 
 Ethereum leverages the ECDSA (secp256k1) signature scheme, which is based on Elliptic Curve Cryptography (ECC). While secp256k1 is highly secure and performs well with the bit-wise operations of the Ethereum Virtual Machine (EVM), it is not optimized for the arithmetic circuits used by ZK-Rollup provers. Implementing ECDSA verification within a ZK circuit requires an excessive number of constraints, primarily due to the non-native field arithmetic and the modular inversion required for verification.
 
-Table below presents a comparison of a set of popular signature schemes. To optimize the prover's efficiency in the EduRoll Project, EdDSA signature scheme (specifically over the Baby Jubjub curve) are favored. EdDSA signatures offer a linear structure that is significantly more "ZK-friendly," resulting in fewer constraints and faster proof generation times. 
+Table below presents a comparison of a set of popular signature schemes. To optimize the prover's efficiency in the EduRoll Project, EdDSA signature scheme is favored. EdDSA signatures offer a linear structure that is significantly more "ZK-friendly," resulting in fewer constraints and faster proof generation times. 
 
 Additionally, this piece of [benchmarking research](https://eprint.iacr.org/2023/681.pdf) suggests that the experimental results show that a Schnorr implementation over Baby Jubjub can be up to 3x faster in both verification and proving time while maintaining similar RAM usage and constraint counts. Despite these performance advantages, the security implications must be analyzed before adoption. Consequently, Schnorr is noted as a candidate for future optimization pending a full security audit.
 
@@ -93,12 +93,6 @@ Additionally, this piece of [benchmarking research](https://eprint.iacr.org/2023
 | [**Schnorr**](https://eprint.iacr.org/2023/681.pdf)  | Baby Jubjub | Native      |  ~4.6K     | High |
 
 
-
-<!-- ##### Commitment Scheme
-
-Commitments are used during the Prover's operation to ...
-Below table compares the commitment schemes. -->
-
 #### Phase 1: ZK-Artifact Generation (Compile-Time)
 
 Before the system can run, the ZK-SNARK components are generated from the circuit logic (as shown by the **purple Circuit** arrows):
@@ -108,7 +102,7 @@ Before the system can run, the ZK-SNARK components are generated from the circui
 2.  **Key Generation:** This single `transfer.r1cs` file is used to generate two mathematically-linked components:
 	* **L2 Proving Key (`transfer_final.zkey`):** A large (e.g., 100MB) file generated via a trusted setup. In the EduRoll project, **`Groth16`** is used, although other systems such as PLONK, PLONKish (UltraPLONK), Marlin, or Halo2 can also be used. **Groth16 was chosen because** it provides fast verification and a small Layer-1 **verifier contract**. This proving key is loaded by the **`Prover`** service to *generate* proofs.
 
-	  * Below is a table for comparison of available libraries:
+	  * Below is a table for comparison of proving systems:
 
 | System | Trusted Setup | Verifier Cost |
 | :---| :--- | :--- |
