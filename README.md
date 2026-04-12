@@ -11,6 +11,9 @@ EduRoll: End-to-End Ethereum zk-Rollup (L1 Contracts, Sequencer, Circuits) Built
 EduRoll demonstrates the architecture of a zk-rollup deployed on Ethereum:
 state execution → batching → proving → L1 verification → state finalisation.
 
+> NOTE: Currently in active development. Local testing uses an Anvil environment. 
+> Testnet deployment will follow once core components are complete.
+
 ---
 
 ## 📚 System Architecture (High-Level)
@@ -20,6 +23,8 @@ state execution → batching → proving → L1 verification → state finalisat
   <img src="./docs/assets/diagrams/SystemOverview.png" width="600">
 </a>
 
+
+
 ---
 
 ## System Components (Overview)
@@ -27,9 +32,13 @@ state execution → batching → proving → L1 verification → state finalisat
 See **[`/docs`](./docs/README.md)** for the full explanation.
 
 ### **Layer 1 (Ethereum)**  
-- **`Rollup.sol`** — Stores canonical L2 state root and validates batch proofs  
-- **`Verifier.sol`** — Auto-generated zkSNARK verifier contract  
-- **`Bridge.sol`** — Handles deposits and withdrawals between L1 ↔ L2 
+- **Rollup.sol** — Stores canonical L2 state root and validates batch proofs  
+- **Verifier.sol** — Auto-generated zkSNARK verifier contract  
+- **Bridge.sol** — Handles deposits and withdrawals between L1 ↔ L2 
+- **`Data Availability (DA)`** — Data availability refers to the guarantee that transaction data published by the sequencer is accessible to anyone who needs to verify or reconstruct L2 state. There are multiple approaches:
+  - **Ethereum calldata** — Posting data directly to L1 as calldata is the most secure option but is the most expensive.
+  - **EIP-4844 blobs** — Cheaper data channel for rollups via blob-carrying transactions. However, the data is pruned later on.
+  - **External DA layers** (e.g. Celestia, EigenDA) — Offload DA entirely offchain for maximum cost reduction, at the cost of weaker security assumptions.
 
 
 ### **Layer 2 (Off-Chain Services)**  
@@ -39,7 +48,7 @@ See **[`/docs`](./docs/README.md)** for the full explanation.
 - **Archiver** — Indexes txs and batches for external queries  
 - **Persistent DB (PostgreSQL)** — Central coordination layer for all off-chain components  
 
-
+- **`Decentralisation`** — The single Sequencer is a centralisation risk as it represents a single point of failure for both liveness and censorship. Decentralised Sequencer Sets coordinated via PoS or PoA committees can address this concern. However, this project intentionally uses a single sequencer as a simplification appropriate for a local research prototype.
 
 ### **Client**
 - **Test Client** — Generates signed L2 transactions and sends them to the Sequencer RPC
@@ -78,7 +87,7 @@ Then run the project:
 
 
 ```bash
-  docker-compose logs sequencer prover submitter
+  docker-compose logs submitter
 ```
 
 Expected output:
@@ -101,14 +110,14 @@ EduRoll is configured with a default batch size of 100 transactions.
 
 ---
 
-## Benchmarks (Evaluation in Progress)
-The following table provides the technical performance metrics for the EduRoll system. These benchmarks are conducted on a local environment to simulate the performance of the Prover and the L1 Verifier.
+## Benchmarks *(Results Pending — Testnet Deployment)*
+The following table defines the technical performance metrics that will be evaluated upon testnet deployment.
 
 | Metric | EduRoll | Metric Description |
 |---|---|---|
-| Circuit Constraints | TBA | Total R1CS constraints for the `transfer` circuit logic. |
-| Witness Generation | TBA | Time to calculate the witness for a batch. |
-| Proof Generation Time | TBA | Total time for the `Prover` to generate a Groth16 ZK-SNARK. |
-| Verification Gas Cost | TBA | The cost of running the `verifyProof()` function on L1. |
-| Finality (Soft) | TBA | The time for the `Sequencer` to acknowledge and store the batch. |
-| Finality (Hard) | TBA | Time until the proof is verified and the batch is finalised on-chain (Ethereum). |
+| Circuit Constraints | [Pending] | Total R1CS constraints for the `transfer` circuit logic. |
+| Witness Generation | [Pending] | Time to calculate the witness for a batch. |
+| Proof Generation Time | [Pending] | Total time for the `Prover` to generate a Groth16 ZK-SNARK. |
+| Verification Gas Cost | [Pending] | The cost of running the `verifyProof()` function on L1. |
+| Finality (Soft) | [Pending] | The time for the `Sequencer` to acknowledge and store the batch. |
+| Finality (Hard) | [Pending] | Time until the proof is verified and the batch is finalised on-chain (Ethereum). |
