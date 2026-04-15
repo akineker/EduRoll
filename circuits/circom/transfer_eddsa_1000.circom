@@ -355,4 +355,4 @@ template EduRollup(depth, n_txs) {
     intermediate_roots[n_txs] === new_root;
 }
 
-component main {public [old_root, new_root]} = EduRollup(20, 100);
+component main {public [old_root, new_root]} = EduRollup(20, 1000);
