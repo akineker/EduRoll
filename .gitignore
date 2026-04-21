@@ -25,6 +25,31 @@ out/
 *.wtns
 *.json
 
+# --- ZK Cryptography Artifacts ---
+# Phase 1: Universal Setup (Too large for GitHub)
+*.ptau
+
+# Phase 2: Circuit Specific Setup (Too large for GitHub)
+*.zkey
+
+# Compiled Circuit Logic
+*.r1cs
+*.sym
+
+# Witness files (Private transaction data/Toxic waste)
+*.wtns
+
+# --- Build & Dependency Folders ---
+# Circom generated C++ and JS folders
+*_cpp/
+*_js/
+build/
+
+# Node.js dependencies
+node_modules/
+.npm/
+
+
 ########################################
 # Foundry / Solidity Build Artifacts
 ########################################
