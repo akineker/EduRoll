@@ -2,9 +2,9 @@
 EduRoll: End-to-End Ethereum zk-Rollup (L1 Contracts, L2 Components and Circuits) Built From Scratch
 
 > **Research / educational prototype — NOT production-ready, NOT audited.**
-> EduRoll demonstrates the end-to-end ZK-rollup proving pipeline. In its current version it omits security and infrastructure required for a real deployment (trustless L1 and L2) bridging, a multi-party trusted setup in Phase 2, decentralised sequencing, forced-inclusion/exit, rate-limiting, fees, and more.
+> EduRoll demonstrates the end-to-end ZK-rollup proving pipeline. In its current version it omits security and infrastructure required for a real deployment: trustless L1 and L2 bridging, a multi-party trusted setup in Phase 2, decentralised sequencing, forced-inclusion/exit, rate-limiting, fees, and more.
 
-## What it is?
+## What it is
 
 **EduRoll** is an end-to-end zk-rollup prototype built entirely from scratch:
 - L1 smart contracts (`Rollup.sol`, `BridgeERC20.sol`, `Verifier.sol`)
@@ -16,7 +16,7 @@ It demonstrates the full lifecycle of a zk-rollup on Ethereum: **state execution
 
 **Design decisions, component internals, the trusted-setup details, and the full list of limitations are in [`docs/README.md`](./docs/README.md).**
 
-### Eduroll's Scope
+### EduRoll's Scope
 **Implemented & working:** 
   1. EdDSA-signed L2 transfers
   2. Batching
@@ -63,24 +63,24 @@ See [`docs/README.md`](./docs/README.md) for the detailed component breakdown an
 
 ```bash
 # 1. Build the ZK artifacts (Compile circuit -> trusted setup -> export Verifier.sol)
-bash ./sim-scripts/build-circuit.sh
+bash ./simulation-scripts/build-circuit.sh
 
 # 2. Fresh simulation start (Compile the project and docker containers, seed accounts, deploy L1 contracts, start all docker services)
-bash ./sim-scripts/run-fresh.sh
+bash ./simulation-scripts/run-fresh.sh
 
-# 3. Stop (Stop L2 components)
-docker-compose down
+# 3. Pause the simulation
+bash ./simulation-scripts/run-pause.sh
 
-# 4. Resume (Keeps the DB and L1 state)
-bash ./sim-scripts/run-resume.sh
+# 4. Resume (Keeps the DB + L1 state)
+bash ./simulation-scripts/run-resume.sh
 
 # 5. Remove (All docker containers, Rust and Forge compiles)
-bash ./sim-scripts/remove.sh
+bash ./simulation-scripts/remove.sh
 ```
 
 Inspect a service's logs:
 ```bash
-docker-compose logs -f # all containers and anvil
+docker-compose logs -f # all services
 docker-compose logs -f CONTAINER_NAME # i.e: sequencer / prover / submitter / archiver / test_client / anvil 
 ```
 
@@ -113,7 +113,7 @@ Local runs of the 20-tx circuit (20 transfers + 4 deposit slots).
 ---
 
 ## Future Work
-1. **Decentralised sequencer network:** A PoS or PoA sequencer set remove the single point of failure for liveness and censorship.
+1. **Decentralised sequencer network:** A PoS or PoA sequencer set removes the single point of failure for liveness and censorship.
 2. **Recursive proof aggregation:** Multi-tier proving to compress larger tx sets into one L1 submission.
 3. **Alternative data availability:** EIP-4844 blobs or modular DA (Celestia / EigenDA) to reduce DA cost.
 4. **Trustless bridge:** Proof-bound deposits and withdrawals.
