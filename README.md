@@ -2,7 +2,7 @@
 EduRoll: End-to-End Ethereum zk-Rollup (L1 Contracts, L2 Components and Circuits) Built From Scratch
 
 > **Research / educational prototype — NOT production-ready, NOT audited.**
-> EduRoll demonstrates the end-to-end ZK-rollup proving pipeline. In its current version it omits security and infrastructure required for a real deployment: trustless L1 and L2 bridging, a multi-party trusted setup in Phase 2, decentralised sequencing, forced-inclusion/exit, rate-limiting, fees, and more.
+> EduRoll demonstrates the end-to-end ZK-rollup proving pipeline. In its current version it omits security audits required for a real deployment: trustless L1 and L2 bridging, a multi-party trusted setup in Phase 2, decentralised sequencing, forced-inclusion/exit, rate-limiting, fees, and more.
 
 ## What it is
 
@@ -12,7 +12,7 @@ EduRoll: End-to-End Ethereum zk-Rollup (L1 Contracts, L2 Components and Circuits
 - ZK transfer circuit (Groth16, Circom)
 - PostgreSQL data layer and a test client (Dockerised)
 
-It demonstrates the full lifecycle of a zk-rollup on Ethereum: **state execution -> batching -> proving -> L1 verification -> state finalisation** with each batch's transactions posted to L1 as **calldata** for data availability.
+It demonstrates the full lifecycle of a zk-rollup on Ethereum: **state execution -> batching -> proving -> L1 verification -> state finalisation** with each batch's transactions posted to L1 as **calldata** for DA.
 
 **Design decisions, component internals, the trusted-setup details, and the full list of limitations are in [`docs/README.md`](./docs/README.md).**
 
@@ -36,7 +36,7 @@ It demonstrates the full lifecycle of a zk-rollup on Ethereum: **state execution
 ## System Architecture (high-level)
 
 <a href="./docs/assets/diagrams/SystemOverview.png">
-  <img src="./docs/assets/diagrams/SystemOverview.png" width="600">
+  <img src="./docs/assets/diagrams/SystemOverview.png" width="400">
 </a>
 
 - **L1 (Ethereum):**
@@ -62,10 +62,12 @@ See [`docs/README.md`](./docs/README.md) for the detailed component breakdown an
 [Colima](https://github.com/abiosoft/colima),a lightweight Docker alternative for low-resource systems, is used and pre-wired in the scripts. To use plain Docker, edit the scripts first.
 
 ```bash
-# 1. Build the ZK artifacts (Compile circuit -> trusted setup -> export Verifier.sol)
+# 1. Build the ZK artifacts
+# (Compile circuit -> trusted setup -> export Verifier.sol)
 bash ./simulation-scripts/build-circuit.sh
 
-# 2. Fresh simulation start (Compile the project and docker containers, seed accounts, deploy L1 contracts, start all docker services)
+# 2. Fresh simulation start
+# (Compile the project and docker containers, seed accounts, deploy L1 contracts, start all docker services)
 bash ./simulation-scripts/run-fresh.sh
 
 # 3. Pause the simulation
@@ -93,7 +95,7 @@ Local runs of the 20-tx circuit (20 transfers + 4 deposit slots).
 
 | Metric | EduRoll | Notes |
 |---|---|---|
-| Circuit constraints | ~628k | 20-tx circuit (transfers + deposits) |
+|Total Circuit constraints | ~1.17M | 20-tx circuit (transfers + deposits), Linear: ~544K, Non-linear: ~628K|
 | Witness generation | ~1.8 s | |
 | Proof generation | ~80 s | snarkjs Groth16 |
 | Trusted setup (Phase 2) | ~3 min | One-off `groth16 setup` and contribution |
@@ -110,11 +112,3 @@ Local runs of the 20-tx circuit (20 transfers + 4 deposit slots).
 | Groth16Verifier | 366,287 |
 | BridgeERC20 | 341,027 |
 | Rollup | 859,975 |
----
-
-## Future Work
-1. **Decentralised sequencer network:** A PoS or PoA sequencer set removes the single point of failure for liveness and censorship.
-2. **Recursive proof aggregation:** Multi-tier proving to compress larger tx sets into one L1 submission.
-3. **Alternative data availability:** EIP-4844 blobs or modular DA (Celestia / EigenDA) to reduce DA cost.
-4. **Trustless bridge:** Proof-bound deposits and withdrawals.
-5. **Larger batch size:** C++ witness generation and an optimized prover (e.g., Rapidsnark) to manage increased constraint sizes and memory footprint.
