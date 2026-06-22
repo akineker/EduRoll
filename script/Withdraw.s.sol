@@ -5,9 +5,8 @@ pragma solidity ^0.8.20;
 import {Script, console} from "forge-std/Script.sol";
 import {IRollup} from "../src/interfaces/IRollup.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-/// @title Withdraw script
+// @title Withdraw script
 contract Withdraw is Script {
     function run() external {
 
@@ -20,15 +19,17 @@ contract Withdraw is Script {
         uint256 amountToWithdraw = 5 ether;
 
         // Prepare the Merkle Proof
-        // TODO: Fetch this from your Archiver API when offchain completed.
         bytes32[] memory merkleProof = new bytes32[](1);
         merkleProof[0] = bytes32(0); // Dummy hash
 
-        //Nonce generation
-        uint256 nonce = IRollup(rollupAddress).nonces(msg.sender);
-        
+        // Resolve user address from private key before broadcast
+        address userAddress = vm.addr(userPrivateKey);
+
         // Execute Withdrawal
         vm.startBroadcast(userPrivateKey);
+
+        //Nonce generation
+        uint256 nonce = IRollup(rollupAddress).nonces(userAddress);
 
         // The Rollup verifies the proof and commands the Bridge to pay.
         IRollup(rollupAddress).withdrawFunds(

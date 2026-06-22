@@ -1,61 +1,78 @@
-version: '3.8'
-
-#NETWORKS
+# NETWORKS
 networks:
   eduroll_net:
     driver: bridge
 
-#VOLUMES (PostgresDB)
+# VOLUMES
 volumes:
   postgres_data:
+  anvil_data:
 
-  # zk_keys_cache: 
-  
-
-#SERVICES
+# SERVICES
 services:
-  # CORE INFRASTRUCTURE
   postgres:
-    image: postgres:16-alpine 
+    image: postgres:16-alpine
     container_name: postgres
     networks:
       - eduroll_net
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Mount the persistent volume
-      # FIXME Use init.sql, not the Dockerfile
+      - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       POSTGRES_USER: eduroll_user
       POSTGRES_PASSWORD: ${DB_PASSWORD:-localpassword}
       POSTGRES_DB: eduroll_db
-      
     ports:
       - "5432:5432"
 
   anvil:
     image: ghcr.io/foundry-rs/foundry
     container_name: anvil
-    command: anvil --chain-id 1337 --port 8545 --host 0.0.0.0 --silent
+    entrypoint: ["anvil"]
+    command:
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8545"
+      - "--chain-id"
+      - "1337"
+      - "--state"
+      - "/anvil_data/state.json"
+    volumes:
+      - anvil_data:/anvil_data
     networks:
       - eduroll_net
     ports:
       - "8545:8545"
+
+  seed_accounts:
+    build:
+      context: .
+      dockerfile: ./tools/accounts/seed_accounts.Dockerfile
+    container_name: seed_accounts
+    depends_on:
+      - postgres
+    networks:
+      - eduroll_net
+    environment:
+      DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
+    restart: "no"
 
   # RUST SERVICES
   sequencer:
     build:
       context: .
       dockerfile: ./offchain/crates/sequencer/sequencer.Dockerfile
+    container_name: sequencer
     depends_on:
       - postgres
       - anvil
     networks:
       - eduroll_net
-    environment: 
+    environment:
       DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
       L1_RPC_URL: http://anvil:8545
       RUSTFLAGS: "-C target-cpu=native"
-
     ports:
       - "9001:9001"
 
@@ -63,8 +80,9 @@ services:
     build:
       context: .
       dockerfile: ./offchain/crates/prover/prover.Dockerfile
+    container_name: prover
     depends_on:
-      - postgres 
+      - postgres
     networks:
       - eduroll_net
     volumes:
@@ -72,12 +90,15 @@ services:
     environment:
       DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
       RUSTFLAGS: "-C target-cpu=native"
-      ZK_PROVING_KEY_PATH: /app/circuits/build/tuition_final.zkey 
+      ZK_PROVING_KEY_PATH: /app/circuits/build/transfer_final.zkey
+      ZK_WASM_PATH:        /app/circuits/build/transfer_eddsa_20_js/transfer_eddsa_20.wasm
+      ZK_WASM_JS_PATH:     /app/circuits/build/transfer_eddsa_20_js/generate_witness.js
 
   submitter:
     build:
       context: .
       dockerfile: ./offchain/crates/submitter/submitter.Dockerfile
+    container_name: submitter
     depends_on:
       - postgres
       - anvil
@@ -94,6 +115,7 @@ services:
     build:
       context: ./
       dockerfile: ./offchain/crates/archiver/archiver.Dockerfile
+    container_name: archiver
     depends_on:
       - postgres
     networks:
@@ -102,18 +124,16 @@ services:
       DATABASE_URL: postgres://eduroll_user:${DB_PASSWORD:-localpassword}@postgres:5432/eduroll_db
       RUSTFLAGS: "-C target-cpu=native"
 
-
-  # SIMULATION TOOLS
   test_client:
     build:
       context: .
-      dockerfile: ./tools/test_client/test_client.Dockerfile 
+      dockerfile: ./tools/test_client/test_client.Dockerfile
+    container_name: test_client
     depends_on:
-      - sequencer 
+      - sequencer
     networks:
       - eduroll_net
-    command: /usr/local/bin/test_client run-simulation --target-url http://sequencer:9001
+    command: /usr/local/bin/test_client --continuous --url http://sequencer:9001
     environment:
-      SEQUENCER_URL: http://sequencer:9001
       RUSTFLAGS: "-C target-cpu=native"
     restart: "no"

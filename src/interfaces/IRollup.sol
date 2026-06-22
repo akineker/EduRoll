@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// @title IRollup
+// @title IRollup
 interface IRollup {
     struct PublicInputs {
         bytes32 oldRoot;
@@ -19,6 +19,13 @@ interface IRollup {
         bytes32 newRoot
     );
 
+    // Emitted with the full batch transaction data for on-chain DA
+    event BatchDataPosted(
+        uint64 indexed batchNumber,
+        bytes32 batchDataHash,
+        bytes batchData
+    );
+
     // Read-only state accessors
     function stateRoot() external view returns (bytes32);
     function batchNumber() external view returns (uint64);
@@ -31,11 +38,11 @@ interface IRollup {
             uint256[2] calldata a,
             uint256[2][2] calldata b,
             uint256[2] calldata c,
-            PublicInputs calldata input
+            PublicInputs calldata input,
+            bytes calldata batchData
     ) external;
 
-    /// User function to withdraw funds: Requires Merkle proof
-    /// @notice  Nonce is added to mitigate Replay attacks as without a nonce value, a user only withdraw once for the same amount.
+    // User function to withdraw funds: Requires merkle proof
     function withdrawFunds(
         address token,
         uint256 amount,

@@ -1,9 +1,14 @@
+// ============================================================================
+// TEST FILE - Foundry unit tests for the Rollup contract: checks that submitBatch enforces
+// the old-root and batch-number constraints and updates on-chain state, and
+// reverts on a wrong old root (uses a mock verifier). 
+// ============================================================================
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {Rollup} from "../src/Rollup.sol";
-import {Verifier} from "../src/Verifier.sol";
+import {VerifierMock} from "../src/Verifier_mock.sol";
 import {BridgeERC20} from "../src/BridgeERC20.sol";
 import {IRollup} from "../src/interfaces/IRollup.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -17,13 +22,13 @@ contract MockToken is ERC20 {
 
 contract RollupTest is Test {
     Rollup public rollup;
-    Verifier public verifier;
+    VerifierMock public verifier;
     BridgeERC20 public bridge;
     MockToken public token;
 
     function setUp() public {
         //Deploy helpers
-        verifier = new Verifier();
+        verifier = new VerifierMock();
         token = new MockToken();
 
         // Handle Circular Dependency (Bridge <-> Rollup)
@@ -33,8 +38,8 @@ contract RollupTest is Test {
         // Deploy Bridge
         bridge = new BridgeERC20(address(token), precomputedRollup);
 
-        // Deploy Rollup
-        rollup = new Rollup(address(verifier), address(bridge), bytes32(0));
+        // Deploy Rollup - this test contract acts as the authorised submitter.
+        rollup = new Rollup(address(verifier), address(bridge), bytes32(0), address(this));
 
         // Sanity Check
         assertEq(address(rollup), precomputedRollup, "Deployment address mismatch");
@@ -49,12 +54,13 @@ contract RollupTest is Test {
         //Prepare Public Inputs
         bytes32 newRoot = bytes32(uint256(0x123456789)); 
         
+        bytes memory batchData = "";
         IRollup.PublicInputs memory inputs = IRollup.PublicInputs({
-            oldRoot: bytes32(0), 
+            oldRoot: bytes32(0),
             newRoot: newRoot,
             withdrawalsRoot: bytes32(0),
             depositsRoot: bytes32(0),
-            batchDataHash: bytes32(0),
+            batchDataHash: keccak256(batchData),
             batchNumber: 1, // Must be current + 1
             l1BlockNumber: uint64(block.number),
             circuitVersion: 1
@@ -64,10 +70,10 @@ contract RollupTest is Test {
         vm.expectEmit(true, false, false, true);
         emit IRollup.BatchSubmitted(1, newRoot);
 
-        // 4. Call submitBatch
-        rollup.submitBatch(a, b, c, inputs);
+        // Call submitBatch
+        rollup.submitBatch(a, b, c, inputs, batchData);
 
-        // 5. Assertions: Verify State Updates
+        // Assertions: Verify State Updates
         assertEq(rollup.stateRoot(), newRoot, "State root should update to newRoot");
         assertEq(rollup.batchNumber(), 1, "Batch number should increment");
     }
@@ -90,7 +96,7 @@ contract RollupTest is Test {
         });
 
         vm.expectRevert("Invalid old root");
-        
-        rollup.submitBatch(a, b, c, inputs);
+
+        rollup.submitBatch(a, b, c, inputs, "");
     }
 }

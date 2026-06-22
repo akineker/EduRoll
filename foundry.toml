@@ -8,6 +8,8 @@ optimizer_runs = 200
 evm_version = "paris"
 via_ir = true
 ffi = false
+# Allow scripts/tests to read the generated proof calldata.
+fs_permissions = [{ access = "read", path = "./circuits/build/proof" }]
 remappings = [
                 "forge-std/=lib/forge-std/src/",
                 "@openzeppelin/=lib/openzeppelin-contracts/",

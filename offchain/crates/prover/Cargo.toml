@@ -5,9 +5,20 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-types = { path = "../types" }
+tracing-subscriber = { workspace = true }
 tokio = { workspace = true }
+tempfile = "3"
+num-bigint = "0.4"
+
+# Used by build_witness_from_db (#3) to construct AccountState values for
+# the Poseidon Merkle tree reconstruction.
+ethers = { workspace = true }
+sqlx = { workspace = true }
+
+# Internal Crates
+types = { path = "../types" }
+storage = { path = "../storage" }
+merkle = { path = "../merkle" }

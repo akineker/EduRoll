@@ -1,14 +1,12 @@
 use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use std::fmt;
-/// Hash wrapper for Ethereum-compatible Keccak-256
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct KeccakHash(pub [u8; 32]);
 
-/// Hash wrapper Poseidon
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct PoseidonHash(pub [u8; 32]);
 
-// --- KeccakHash Implementations ---
 impl Serialize for KeccakHash { 
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -47,7 +45,6 @@ impl fmt::Display for KeccakHash {
     }
 }
 
-// --- PoseidonHash Implementations ---
 impl Serialize for PoseidonHash { 
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

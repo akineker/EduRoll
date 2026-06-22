@@ -1,0 +1,15 @@
+[package]
+name = "storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Internal workspace dependency
+types = { path = "../types" }
+
+# Workspace dependencies
+sqlx       = { workspace = true }
+tokio      = { workspace = true }
+anyhow     = { workspace = true }
+tracing    = { workspace = true }
+bigdecimal = { workspace = true }

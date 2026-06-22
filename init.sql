@@ -14,8 +14,6 @@ CREATE TABLE IF NOT EXISTS batches (
     batch_id SERIAL PRIMARY KEY,
     pre_state_root_poseidon BYTEA NOT NULL,
     post_state_root_poseidon BYTEA NOT NULL,
-    pre_state_root_keccak   BYTEA NOT NULL,
-    post_state_root_keccak  BYTEA NOT NULL,
     zk_proof BYTEA,
     l1_tx_hash BYTEA,
     l1_block_number BIGINT,
@@ -50,10 +48,6 @@ CREATE TABLE IF NOT EXISTS transactions (
     batch_id INT REFERENCES batches(batch_id)
 );
 
--- Per-batch snapshot of the PRE-batch account state.
--- Populated by the sequencer in the same DB transaction as the batch insert,
--- BEFORE the accounts table is updated. Lets the prover (or any other
--- consumer) reconstruct the exact pre-batch tree later.
 CREATE TABLE IF NOT EXISTS batch_snapshots (
     snapshot_id   SERIAL PRIMARY KEY,
     batch_id      INT NOT NULL REFERENCES batches(batch_id) ON DELETE CASCADE,
@@ -84,8 +78,3 @@ CREATE INDEX IF NOT EXISTS idx_batches_active_status ON batches(status)
 
 CREATE INDEX IF NOT EXISTS idx_txs_pending ON transactions(status) 
     WHERE status = 'PENDING';
-
-
--- Accounts are now populated by the `seed_accounts` binary on fresh-DB startup
--- (1000 deterministic accounts, real BabyJubJub keypairs).
--- See tools/accounts/src/bin/seed_accounts.rs.

@@ -6,5 +6,8 @@ edition = "2021"
 [dependencies]
 anyhow = { workspace = true }
 serde = { workspace = true }
+tracing = { workspace = true }
+
+# Internal crates
 types = { path = "../types" }
-blake3 = { workspace = true }   # simple state checkpointing (off-chain)
+merkle = { path = "../merkle" }

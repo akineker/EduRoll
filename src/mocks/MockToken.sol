@@ -8,7 +8,7 @@ contract MockToken is ERC20 {
         _mint(msg.sender, 1000000 * 10**18);
     }
 
-    // Helper to mint more tokens if needed
+    // Helper to mint more tokens if needed during tests
     function mint(address to, uint256 amount) public {
         _mint(to, amount);
     }

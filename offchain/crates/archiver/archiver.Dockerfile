@@ -1,8 +1,7 @@
 #MULTI STAGE BUILD
-# --- STAGE 1: BUILDER ---
+# STAGE 1: BUILDER
 FROM rust:1.91-slim-bullseye AS builder
 
-# Install libpq and SSL dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config libssl-dev libpq-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -11,11 +10,14 @@ WORKDIR /app
 COPY Cargo.toml /app/
 COPY offchain/ /app/offchain/
 COPY tools/ /app/tools/
+# sqlx query cache — required so the build can verify SQL without a live DB
+COPY .sqlx/ /app/.sqlx/
 
-# Build the archiver binary /app
+# Build the archiver binary (offline mode uses the .sqlx cache)
+ENV SQLX_OFFLINE=true
 RUN cargo build --release --bin archiver --workspace
 
-# --- STAGE 2: RUNTIME ---
+# STAGE 2: RUNTIME
 FROM debian:bullseye-slim
 
 RUN apt-get update && apt-get install -y libpq5 libssl1.1 ca-certificates \

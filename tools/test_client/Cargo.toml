@@ -4,19 +4,30 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# Async Runtime
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+# CLI argument parsing
+clap = { workspace = true }
 
-# HTTP Client for RPC submission
+# Async runtime
+tokio = { workspace = true }
+
+# HTTP client
 reqwest = { version = "0.11", features = ["json"] }
 
-# Serialization/Deserialization for communication
+# Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-# Ethereum Types and Signing (Crucial for L2 transactions)
-ethers-core = { workspace = true }
-ethers-signers = { workspace = true }
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 
-rand = "0.8"
-hex = "0.4"
+# Hashing / encoding
+hex = { workspace = true }
+
+# Random intervals for continuous mode
+rand = { workspace = true }
+
+# Internal crates
+types    = { path = "../../offchain/crates/types" }
+accounts = { path = "../accounts" }
+anyhow   = { workspace = true }

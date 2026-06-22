@@ -1,27 +1,26 @@
 use serde::{Serialize, Deserialize};
-use crate::Hash;
-use ethers::types::U256;
+use crate::hashes::PoseidonHash;
+use crate::crypto_utils::poseidon_hash_two;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MerkleProof {
     pub leaf_index: u64,
-    pub leaf_hash: Hash,
-    pub siblings: Vec<Hash>, // The path to the root
-    pub root: Hash,
+    pub leaf_hash: PoseidonHash,
+    pub siblings: Vec<PoseidonHash>, 
+    pub root: PoseidonHash,
 }
 
-/// Used for the "Withdraw" API response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountProofResponse {
     pub address: String,
-    pub balance: U256,
-    pub nonce: U256,
+    pub balance: u128, 
+    pub nonce: u64, 
     pub proof: MerkleProof,
 }
 
 impl MerkleProof {
-    pub fn verify(&self, hash_function: impl Fn(&Hash, &Hash) -> Hash) -> bool {
-        let mut current_hash = self.leaf_hash;
+    pub fn verify(&self) -> bool {
+        let mut current_hash = self.leaf_hash.clone();
         let mut index = self.leaf_index;
 
         for sibling in self.siblings.iter() {
@@ -31,7 +30,8 @@ impl MerkleProof {
                 (sibling, &current_hash)
             };
 
-            current_hash = hash_function(left, right);
+            // Call the cryptographic utility directly
+            current_hash = poseidon_hash_two(left, right);
             index /= 2;
         }
         current_hash == self.root

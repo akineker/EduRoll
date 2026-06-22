@@ -1,21 +1,23 @@
 pragma circom 2.0.0;
 
 // Circom Circuit Design
-/* EDDSA signatures with 20 transactions per state transition
+// EDDSA signatures with 20 transactions per state transition
 
-    Proves 20 valid L2 transfers using EdDSA signatures over a Sparse Merkle Tree of depth 20.
-    
-    Public inputs  : old_root, new_root
-    
-    Private witness: transactions, account states, Merkle proofs, signatures
-*/
 include "node_modules/circomlib/circuits/eddsaposeidon.circom";
 include "node_modules/circomlib/circuits/poseidon.circom";
 include "node_modules/circomlib/circuits/comparators.circom";
 include "node_modules/circomlib/circuits/mux1.circom";
 include "node_modules/circomlib/circuits/bitify.circom";
 // COMPONENTS
-// Component1:Merkle Proof - Verify old leaf
+//
+// NOTE - MerkleProof (Component1) and MerkleUpdate (Component2) are REFERENCE
+// implementations, kept for readability to show the naive "prove-then-update"
+// approach. They are NOT compiled into the live circuit. The circuit instantiates
+// OptimizedMerkleUpdate (Component2_1) instead, which fuses the old-root proof and
+// the new-root recomputation into a single pass over the shared path. See
+// docs/circuit_design.md.
+//
+// Component1: MerkleProof - Verify old leaf
 template MerkleProof(depth){
     signal output root;
     signal input leaf;
@@ -30,8 +32,6 @@ template MerkleProof(depth){
     hashes[0] <== leaf; 
 
     for (var i = 0; i < depth; i++) {
-
-        // Mux1: selects between two values based on a binary selector
         // LEFT input to Poseidon
         left_sel[i] = Mux1();
         left_sel[i].c[0] <== hashes[i];
@@ -55,7 +55,7 @@ template MerkleProof(depth){
     root <== hashes[depth];
 }
 
-//Component2: MerkleUpdate - Compute new root 
+//Component2: MerkleUpdate - Compute new root
 template MerkleUpdate(depth) {
     signal input old_leaf;
     signal input new_leaf;
@@ -64,7 +64,7 @@ template MerkleUpdate(depth) {
     signal input old_root;
     signal output new_root;
 
-    // Step 1: prove old_leaf is in tree at old_root
+    // Prove old_leaf is in tree at old_root
     component verify_old = MerkleProof(depth);
     verify_old.leaf <== old_leaf;
     for (var i = 0; i < depth; i++) {
@@ -73,7 +73,7 @@ template MerkleUpdate(depth) {
     }
     verify_old.root === old_root;
 
-    // Step 2: recompute root with new_leaf at the same path
+    // Recompute root with new_leaf at the same path
     component compute_new = MerkleProof(depth);
     compute_new.leaf <== new_leaf;
     for (var i = 0; i < depth; i++) {
@@ -83,7 +83,7 @@ template MerkleUpdate(depth) {
     new_root <== compute_new.root;
 }
 
-//Component2_1: OptimisedMerkleUpdate - Compute new root 
+//Component2_1: OptimisedMerkleUpdate
 template OptimizedMerkleUpdate(depth) {
     signal input old_leaf;
     signal input new_leaf;
@@ -111,8 +111,7 @@ template OptimizedMerkleUpdate(depth) {
     //Check old root and calculate new root
     for (var i = 0; i < depth; i++) {
 
-        // Path index must be boolean (0/1); otherwise the Mux1 selectors below
-        // are unconstrained and a prover could forge Merkle paths.
+        // Path index must be boolean (0/1)
         pathIndices[i] * (pathIndices[i] - 1) === 0;
 
         // Old root
@@ -186,7 +185,7 @@ template StateTransition(depth) {
     signal input sender_pub_key_y;
 
 
-    // Step 1: Verify sender EDDSA signature
+    // Step 1: Verify sender EdDSA signature
     component msg_hash = Poseidon(4);
     msg_hash.inputs[0] <== tx_sender_address;
     msg_hash.inputs[1] <== tx_receiver_address;
@@ -223,12 +222,11 @@ template StateTransition(depth) {
     is_self_transfer.in <== tx_sender_address - tx_receiver_address;
     is_self_transfer.out === 0;
 
-    // Security Check: range-check sender_balance so GreaterEqThan(128) is sound
-    // (both of its inputs must be < 2^128). Holds inductively but enforced here.
+    // Security Check: range-check sender_balance GreaterEqThan(128)
     component sender_balance_bits = Num2Bits(128);
     sender_balance_bits.in <== sender_balance;
 
-    // Step 3: Verify sender has sufficient balance : 128bit maximum balance
+    // Step 3: Verify sender has sufficient balance, 128bit maximum balance
     component sufficient_balance = GreaterEqThan(128);
     sufficient_balance.in[0] <== sender_balance;
     sufficient_balance.in[1] <== tx_amount;
@@ -246,12 +244,13 @@ template StateTransition(depth) {
     // Step 6: Update sender leaf
     component new_sender_leaf = Poseidon(3);
     new_sender_leaf.inputs[0] <== tx_sender_address;
-    new_sender_leaf.inputs[1] <== sender_balance - tx_amount;  // deduct
-    new_sender_leaf.inputs[2] <== sender_nonce + 1;            // increment nonce
+    new_sender_leaf.inputs[1] <== sender_balance - tx_amount;
+    new_sender_leaf.inputs[2] <== sender_nonce + 1;
 
-    signal intermediate_root;  // root after sender update, before receiver update
+    // Root after sender update, before receiver update
+    signal intermediate_root;
 
-    // component sender_update = MerkleUpdate(depth);
+    // component sender_update
     component sender_update = OptimizedMerkleUpdate(depth);
     sender_update.old_leaf  <== old_sender_leaf.out;
     sender_update.new_leaf  <== new_sender_leaf.out;
@@ -276,7 +275,6 @@ template StateTransition(depth) {
 
 
     // Step 8: Compute new Merkle root
-    // component receiver_update = MerkleUpdate(depth);
     component receiver_update = OptimizedMerkleUpdate(depth);
     receiver_update.old_leaf  <== old_receiver_leaf.out;
     receiver_update.new_leaf  <== new_receiver_leaf.out;
@@ -288,33 +286,29 @@ template StateTransition(depth) {
     new_root <== receiver_update.new_root;
 }
 
-// Component4: Deposit — credit an L1 deposit to an L2 account. Supports both
-// new-account onboarding (insert into an empty leaf, proven empty against the
-// current root) and top-ups of an existing account. Emits the post-deposit
-// root, a commitment used to build the public deposits_root, and an activity
-// flag (0 for padding slots so they are excluded from deposits_root).
+// Component4: Deposit - Future Use
 template Deposit(depth) {
     signal input current_root;
     signal output new_root;
-    signal output commitment;   // Poseidon(l2_address, amount)
-    signal output is_active;    // 1 if amount > 0, else 0 (padding slot)
+    signal output commitment;
+    signal output is_active;
 
     signal input pubkey_x;
     signal input pubkey_y;
     signal input amount;
-    signal input is_new;        // 1 = onboard empty leaf, 0 = top-up existing
-    signal input old_balance;   // must be 0 when is_new == 1
-    signal input old_nonce;     // must be 0 when is_new == 1
+    signal input is_new;
+    signal input old_balance;
+    signal input old_nonce;
     signal input path_elements[depth];
     signal input path_indices[depth];
 
-    // L2 address = Poseidon(pubkey_x, pubkey_y) — same identity as transfers.
+    // L2 address = Poseidon(pubkey_x, pubkey_y)
     component addr_h = Poseidon(2);
     addr_h.inputs[0] <== pubkey_x;
     addr_h.inputs[1] <== pubkey_y;
     signal l2_address <== addr_h.out;
 
-    // is_new must be boolean, and a freshly onboarded account starts empty.
+    // is_new must be boolean, and a freshly onboarded account starts empty
     is_new * (is_new - 1) === 0;
     is_new * old_balance === 0;
     is_new * old_nonce   === 0;
@@ -323,7 +317,7 @@ template Deposit(depth) {
     component amount_bits = Num2Bits(128);
     amount_bits.in <== amount;
 
-    // Leaf of an existing account at this slot.
+    // Leaf of an existing account at this slot
     component existing_leaf = Poseidon(3);
     existing_leaf.inputs[0] <== l2_address;
     existing_leaf.inputs[1] <== old_balance;
@@ -376,9 +370,9 @@ template EduRollup(depth, n_txs, n_deposits) {
     // Public inputs
     signal input old_root;
     signal input new_root;
-    signal input deposits_root;   // commitment to the L1 deposits credited here
+    signal input deposits_root;
 
-    // Private: deposit fields (processed BEFORE transfers)
+    // Private: deposit fields
     signal input deposit_pubkey_x[n_deposits];
     signal input deposit_pubkey_y[n_deposits];
     signal input deposit_amount[n_deposits];
@@ -413,12 +407,11 @@ template EduRollup(depth, n_txs, n_deposits) {
     signal input sender_pub_key_x[n_txs];
     signal input sender_pub_key_y[n_txs];
 
-    // ---- Stage 1: process deposits, chaining the state root from old_root ----
+    // Stage 1: process deposits
     signal deposit_roots[n_deposits + 1];
     deposit_roots[0] <== old_root;
 
-    // deposits_root accumulator: a hash chain over the ACTIVE deposit
-    // commitments (padding slots are skipped via is_active).
+    // deposits_root accumulator
     signal dep_acc[n_deposits + 1];
     dep_acc[0] <== 0;
 
@@ -441,7 +434,6 @@ template EduRollup(depth, n_txs, n_deposits) {
         }
         deposit_roots[d + 1] <== deposits[d].new_root;
 
-        // Fold this deposit's commitment into deposits_root, skipping padding.
         dep_chain[d] = Poseidon(2);
         dep_chain[d].inputs[0] <== dep_acc[d];
         dep_chain[d].inputs[1] <== deposits[d].commitment;
@@ -456,7 +448,7 @@ template EduRollup(depth, n_txs, n_deposits) {
     // Bind the computed deposits root to the public input.
     dep_acc[n_deposits] === deposits_root;
 
-    // ---- Stage 2: transfers, chaining from the post-deposit root ----
+    // Stage 2: transfers, chaining from the post-deposit root
     signal intermediate_roots[n_txs + 1];
     intermediate_roots[0] <== deposit_roots[n_deposits];
 

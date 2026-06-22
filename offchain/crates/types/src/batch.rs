@@ -1,27 +1,34 @@
 use serde::{Serialize, Deserialize};
-use crate::{L2Transaction, Hash};
-use crate::messages::TxStatus;
+use ark_serialize::{CanonicalSerialize, CanonicalDeserialize};
+use crate::{L2Transaction, KeccakHash, PoseidonHash};
 
-use ark_bls12_381::{G1Affine, G2Affine, Bls12_381};
-use ark_ff::{Fp, MontBackend, BigInt, PrimeField};
+use ark_bn254::{G1Affine, G2Affine};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Batch {
-    pub batch_id: u64,
-    pub transactions: Vec<L2Transaction>,
-    pub pre_state_root_poseidon: Hash,
-    pub post_state_root_poseidon: Hash,
-    pub pre_state_root_keccak: Hash,
-    pub post_state_root_keccak: Hash,
-    pub proof: Option<ZKProof>,
-    pub l1_tx_hash: Option<Hash>,
-    pub status: TxStatus,
+#[derive(Debug, Clone, sqlx::Type, Serialize, Deserialize, PartialEq)]
+#[sqlx(type_name = "VARCHAR", rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BatchStatus{
+    PendingProof,
+    Proven,
+    SubmittedToL1,
+    Finalized,
 }
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Batch {
+    pub batch_id: i32,
 
-/// Scalar field definition
-type Fr = <Bls12_381 as ark_ec::PairingEngine>::Fr;
+    #[sqlx(skip)] 
+    pub transactions: Vec<L2Transaction>,
+    pub pre_state_root_poseidon: PoseidonHash,
+    pub post_state_root_poseidon: PoseidonHash,
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+    pub zk_proof: Option<Vec<u8>>,
+    pub l1_tx_hash: Option<KeccakHash>,
+    pub l1_block_number: Option<i64>,
+    
+    pub status: BatchStatus, 
+}
+#[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct ZKProof {
     pub a: G1Affine,
     pub b: G2Affine,

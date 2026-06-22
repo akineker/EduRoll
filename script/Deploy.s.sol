@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
@@ -7,11 +6,10 @@ import {Script, console} from "forge-std/Script.sol";
 import {MockToken} from "../src/mocks/MockToken.sol";
 import {Rollup} from "../src/Rollup.sol";
 import {BridgeERC20} from "../src/BridgeERC20.sol";
-import {Verifier} from "../src/Verifier.sol";
+import {Groth16Verifier} from "../src/Verifier.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-/// @title Deploy script
-
+// @title Deploy script
 contract Deploy is Script {
     function run() external {
         //Load Variables from .env
@@ -27,7 +25,7 @@ contract Deploy is Script {
         address tokenAddress = address(token);
 
         // Deploy Helper Contracts
-        Verifier verifier = new Verifier();
+        Groth16Verifier verifier = new Groth16Verifier();
         console.log("Verifier deployed at:", address(verifier));
 
         // Pre-compute the Rollup Address
@@ -41,12 +39,11 @@ contract Deploy is Script {
         console.log("Bridge deployed at:", address(bridge));
 
         //Deploy Rollup
-        bytes32 initialRoot = bytes32(0); 
-        Rollup rollup = new Rollup(address(verifier), address(bridge), initialRoot);
+        bytes32 initialRoot = vm.envOr("INITIAL_STATE_ROOT", bytes32(0));
+
+        // The authorised submitter
+        Rollup rollup = new Rollup(address(verifier), address(bridge), initialRoot, deployerAddress);
         console.log("Rollup deployed at:", address(rollup));
-
-
-        console.log("!!! DONT FORGET TO UPDATE THE .env FILE !!!");
 
         // Verify the Prediction
         require(address(rollup) == precomputedRollupAddress, "Address mismatch! Deployment failed.");

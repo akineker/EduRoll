@@ -1,3 +1,8 @@
+// ============================================================================
+// TEST FILE - Foundry unit tests for the BridgeERC20 contract: checks that deposit() locks
+// the user's tokens and emits DepositQueued, and that a zero-amount deposit
+// reverts.
+// ============================================================================
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -11,6 +16,7 @@ contract MockToken is ERC20 {
         _mint(msg.sender, 1000000 * 10**18);
     }
 }
+
 contract BridgeTest is Test {
     BridgeERC20 public bridge;
     MockToken public token;
@@ -46,10 +52,10 @@ contract BridgeTest is Test {
 
         vm.startPrank(user); // Become the user
 
-        vm.expectEmit(true, false, false, true);
-        emit BridgeERC20.DepositReceived(user, amount);
+        vm.expectEmit(true, true, false, true);
+        emit BridgeERC20.DepositQueued(0, user, 1, 2, amount);
 
-        bridge.deposit(amount);
+        bridge.deposit(amount, 1, 2);
         
         vm.stopPrank();
 
@@ -62,7 +68,7 @@ contract BridgeTest is Test {
         function test_FailDepositZero() public {
         vm.startPrank(user);
         vm.expectRevert("Invalid amount");
-        bridge.deposit(0);
+        bridge.deposit(0, 1, 2);
         vm.stopPrank();
     }
 }

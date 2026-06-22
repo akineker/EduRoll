@@ -1,3 +1,1 @@
-fn main() {
-    println!("Archiver is here!");
-}
+// Single-binary service — main.rs does all the work.

@@ -3,17 +3,14 @@ pragma solidity ^0.8.20;
 
 import {IVerifier} from "./interfaces/IVerifier.sol";
 
-/// @title Mockup Verifier
-contract Verifier is IVerifier{
-
-    // Mock Verifier
-    // TODO: Generate Verifier.sol using snarkjs and  /circuits/build/transfer.r1cs 
+/// @title Mockup Verifier — always returns true, used for local testing only
+contract VerifierMock is IVerifier{
     function verifyProof(
-        uint256[2] calldata a,
-        uint256[2][2] calldata b,
-        uint256[2] calldata c,
-        uint256[] calldata publicInputs
-    ) external view returns (bool){
+        uint256[2] calldata _pA,
+        uint256[2][2] calldata _pB,
+        uint256[2] calldata _pC,
+        uint256[3] calldata _pubSignals
+    ) external pure returns (bool){
         return true;
     }
 }

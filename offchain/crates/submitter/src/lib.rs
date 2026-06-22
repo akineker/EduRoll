@@ -1,3 +1,1 @@
-fn main() {
-    println!("Submitter is here!");
-}
+// The submitter is a single-binary service
