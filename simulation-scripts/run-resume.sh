@@ -17,8 +17,6 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 echo "Starting all services (resuming from existing volumes)..."
 colima start
 docker-compose up -d
-# seed_accounts is a one-shot and will idempotently no-op if the table already
-# has 1000 rows. If it ran, that's still fine.
 
 echo ""
 echo "DONE."

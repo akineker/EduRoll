@@ -18,7 +18,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 : "${L1_PRIVATE_KEY:=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}"
 
 echo "[1/6] Starting colima..."
-colima status || colima start --cpu 4 --memory 8 --runtime docker
+colima status || colima start --cpu 4 --memory 8 --runtime docker --vm-type=vz --mount-type=virtiofs
 
 echo "[2/6] Rebuilding all service images (cached layers reused)..."
 
