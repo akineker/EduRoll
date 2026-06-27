@@ -4,6 +4,9 @@ EduRoll: End-to-End Ethereum zk-Rollup (L1 Contracts, L2 Components and Circuits
 > **Research / educational prototype — NOT production-ready, NOT audited.**
 > EduRoll demonstrates the end-to-end ZK-rollup proving pipeline. In its current version it omits security audits required for a real deployment: trustless L1 and L2 bridging, a multi-party trusted setup in Phase 2, decentralised sequencing, forced-inclusion/exit, rate-limiting, fees, and more.
 
+## Current Focus / Roadmap
+Extending the proving pipeline onto a modular zkVM (SP1) to compare a hand-written Circom/Groth16 circuit against a Rust zkVM approach (prover cost, constraints, dev effort, gas).
+
 ## What it is
 
 **EduRoll** is an end-to-end zk-rollup prototype built entirely from scratch:
