@@ -1,11 +1,11 @@
 [package]
 version = "0.1.0"
-name = "fibonacci-script"
+name = "eduroll-script"
 edition = "2021"
-default-run = "fibonacci"
+default-run = "eduroll"
 
 [[bin]]
-name = "fibonacci"
+name = "eduroll"
 path = "src/bin/main.rs"
 
 [[bin]]
@@ -23,9 +23,13 @@ serde = { version = "1.0.200", default-features = false, features = ["derive"] }
 clap = { version = "4.0", features = ["derive", "env"] }
 tracing = "0.1.40"
 hex = "0.4.3"
+rand = "0.8"
 alloy-sol-types = { workspace = true }
-fibonacci-lib = { path = "../lib" }
+eduroll-lib = { path = "../lib" }
+stf-core = { path = "../crates/stf-core" }
 dotenv = "0.15.0"
+
+accounts = { path = "../../../tools/accounts" }
 
 [build-dependencies]
 sp1-build = { version = "6.0.1" }

@@ -1,9 +1,10 @@
 [package]
 version = "0.1.0"
-name = "fibonacci-program"
+name = "eduroll-program"
 edition = "2021"
 
 [dependencies]
 alloy-sol-types = { workspace = true }
 sp1-zkvm = { version = "6.0.1" }
-fibonacci-lib = { path = "../lib" }
+eduroll-lib = { path = "../lib" }
+stf-core = { path = "../crates/stf-core" }

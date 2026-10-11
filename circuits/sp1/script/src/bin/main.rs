@@ -1,27 +1,30 @@
-//! An end-to-end example of using the SP1 SDK to generate a proof of a program that can be executed
-//! or have a core proof generated.
+//! Execute or prove the EduRoll STF guest on a demo batch.
 //!
-//! You can run this script using the following command:
 //! ```shell
+//! # Run WITHOUT proving — reports the cycle count (the zkVM "cost dial"):
 //! RUST_LOG=info cargo run --release -- --execute
-//! ```
-//! or
-//! ```shell
+//!
+//! # Generate + verify a core proof locally:
 //! RUST_LOG=info cargo run --release -- --prove
+//!
+//! # Batch shape (defaults: 20 txs over 32 accounts, like the simulation):
+//! RUST_LOG=info cargo run --release -- --execute --txs 20 --accounts 32
 //! ```
 
 use alloy_sol_types::SolType;
 use clap::Parser;
-use fibonacci_lib::PublicValuesStruct;
+use eduroll_lib::PublicValuesStruct;
 use sp1_sdk::{
     blocking::{ProveRequest, Prover, ProverClient},
     include_elf, Elf, ProvingKey, SP1Stdin,
 };
 
-/// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
-const FIBONACCI_ELF: Elf = include_elf!("fibonacci-program");
+#[path = "../demo_batch.rs"]
+mod demo_batch;
 
-/// The arguments for the command.
+/// The compiled RISC-V ELF of the EduRoll guest program.
+const EDUROLL_ELF: Elf = include_elf!("eduroll-program");
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -31,64 +34,65 @@ struct Args {
     #[arg(long)]
     prove: bool,
 
+    /// Transfers in the demo batch (max 20 — the circuit-parity batch size).
     #[arg(long, default_value = "20")]
-    n: u32,
+    txs: usize,
+
+    /// Accounts in the demo pre-state.
+    #[arg(long, default_value = "32")]
+    accounts: usize,
 }
 
 fn main() {
-    // Setup the logger.
     sp1_sdk::utils::setup_logger();
     dotenv::dotenv().ok();
 
-    // Parse the command line arguments.
     let args = Args::parse();
-
     if args.execute == args.prove {
         eprintln!("Error: You must specify either --execute or --prove");
         std::process::exit(1);
     }
 
-    // Setup the prover client.
     let client = ProverClient::from_env();
 
-    // Setup the inputs.
+    // Build a demo batch with REAL EdDSA signatures and write it to stdin.
+    let input = demo_batch::build(args.accounts, args.txs);
     let mut stdin = SP1Stdin::new();
-    stdin.write(&args.n);
+    stdin.write(&input);
 
-    println!("n: {}", args.n);
+    println!("batch: {} txs over {} accounts", args.txs, args.accounts);
 
     if args.execute {
-        // Execute the program
-        let (output, report) = client.execute(FIBONACCI_ELF, stdin).run().unwrap();
+        // Execute only: no proof, but exact cycle accounting — use this to
+        // benchmark (e.g. syscall-accelerated Poseidon vs a naive build).
+        let (output, report) = client.execute(EDUROLL_ELF, stdin).run().unwrap();
         println!("Program executed successfully.");
 
-        // Read the output.
         let decoded = PublicValuesStruct::abi_decode(output.as_slice()).unwrap();
-        let PublicValuesStruct { n, a, b } = decoded;
-        println!("n: {}", n);
-        println!("a: {}", a);
-        println!("b: {}", b);
+        println!("oldRoot:         0x{}", hex::encode(decoded.oldRoot));
+        println!("newRoot:         0x{}", hex::encode(decoded.newRoot));
+        println!("depositsRoot:    0x{}", hex::encode(decoded.depositsRoot));
+        println!("withdrawalsRoot: 0x{}", hex::encode(decoded.withdrawalsRoot));
+        println!("batchDataHash:   0x{}", hex::encode(decoded.batchDataHash));
+        println!("batchNumber:     {}", decoded.batchNumber);
 
-        let (expected_a, expected_b) = fibonacci_lib::fibonacci(n);
-        assert_eq!(a, expected_a);
-        assert_eq!(b, expected_b);
-        println!("Values are correct!");
+        // Sanity: the committed values must equal a native re-execution.
+        let expected = stf_core::execute_batch(&input);
+        assert_eq!(decoded.oldRoot.0, expected.old_root);
+        assert_eq!(decoded.newRoot.0, expected.new_root);
+        assert_eq!(decoded.batchDataHash.0, expected.batch_data_hash);
+        println!("Guest output matches native re-execution.");
 
-        // Record the number of cycles executed.
-        println!("Number of cycles: {}", report.total_instruction_count());
+        println!("Total cycles: {}", report.total_instruction_count());
     } else {
-        // Setup the program for proving.
-        let pk = client.setup(FIBONACCI_ELF).expect("failed to setup elf");
-
-        // Generate the proof
+        // Core proof: fast, local, NOT EVM-verifiable (use bin/evm for that).
+        let pk = client.setup(EDUROLL_ELF).expect("failed to setup elf");
         let proof = client
             .prove(&pk, stdin)
             .run()
             .expect("failed to generate proof");
-
         println!("Successfully generated proof!");
 
-        // Verify the proof.
         client
             .verify(&proof, pk.verifying_key(), None)
             .expect("failed to verify proof");

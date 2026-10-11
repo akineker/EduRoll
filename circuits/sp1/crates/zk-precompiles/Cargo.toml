@@ -1,0 +1,16 @@
+[package]
+name = "zk-precompiles"
+version = "0.1.0"
+edition = "2021"
+
+[target.'cfg(target_os = "zkvm")'.dependencies]
+sp1-zkvm = "6.0.1"
+
+[target.'cfg(not(target_os = "zkvm"))'.dependencies]
+num-bigint = "0.4"
+
+[dev-dependencies]
+light-poseidon = "=0.2.0"
+ark-bn254 = "0.4.0"
+ark-ff = "0.4.0"
+hex = "0.4"
